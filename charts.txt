@@ -1,0 +1,20 @@
+function renderChart(data) {
+  const canvas = document.getElementById("cropChart");
+  const ctx = canvas.getContext("2d");
+
+  const labels = data.map((item) => item.crop);
+  const values = data.map((item) => item.production);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#27ae60";
+
+  const barWidth = 40;
+  let x = 50;
+
+  values.forEach((value, i) => {
+    const barHeight = value / 2;
+    ctx.fillRect(x, canvas.height - barHeight - 20, barWidth, barHeight);
+    ctx.fillText(labels[i], x, canvas.height - 5);
+    x += barWidth + 40;
+  });
+}

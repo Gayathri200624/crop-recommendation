@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Crop Recommendation System</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* === Modern Glassmorphism Styling === */
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+    body {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh; padding: 20px;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(20px);
+      padding: 30px; border-radius: 25px; width: 450px; max-width: 100%;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.25); color: #fff;
+    }
+    h2 { text-align: center; margin-bottom: 20px; font-size: 26px; font-weight: 600; }
+
+    label {
+      font-size: 14px; font-weight: 500; display: flex; align-items: center;
+      margin: 12px 0 6px; color: #e6e6e6;
+    }
+    input {
+      width: 100%; padding: 12px 15px; border-radius: 12px; border: none; outline: none;
+      margin-bottom: 15px; font-size: 14px; background: rgba(255,255,255,0.15); color: #fff;
+    }
+    input::placeholder { color: rgba(255, 255, 255, 0.6); font-size: 13px; }
+    input:focus { background: rgba(255,255,255,0.25); box-shadow: 0 0 8px rgba(255,255,255,0.4); }
+
+    button {
+      width: 100%; padding: 14px; background: linear-gradient(135deg, #43cea2, #185a9d);
+      color: white; border: none; border-radius: 14px; font-size: 15px; cursor: pointer;
+    }
+    button:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.3); }
+
+    .result {
+      margin-top: 20px; padding: 15px; border-radius: 15px; background: rgba(255, 255, 255, 0.2);
+      font-size: 16px; font-weight: bold; text-align: center; color: #fff;
+    }
+
+    canvas { margin-top: 20px; background: rgba(255,255,255,0.1); border-radius: 12px; padding: 10px; }
+
+    /* === Tooltip Styling === */
+    .tooltip {
+      position: relative;
+      display: inline-block;
+      margin-left: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #ffd700;
+    }
+    .tooltip .tooltiptext {
+      visibility: hidden;
+      width: 220px;
+      background-color: rgba(0,0,0,0.85);
+      color: #fff;
+      text-align: left;
+      border-radius: 8px;
+      padding: 8px 10px;
+      position: absolute;
+      z-index: 1;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity 0.3s;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .tooltip:hover .tooltiptext {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    @media (max-width: 600px) {
+      .container { padding: 20px; border-radius: 18px; }
+      h2 { font-size: 22px; }
+      input, button { font-size: 13px; padding: 10px; }
+      .result { font-size: 14px; padding: 12px; }
+      .tooltip .tooltiptext { width: 180px; font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>🌱 Crop Recommendation</h2>
+    
+    <label for="temp">
+      🌡️ Temperature (°C)
+      <span class="tooltip">ℹ️
+        <span class="tooltiptext">Typical range: 18°C – 35°C<br>Best for crops: Rice (>25°C), Wheat (20–25°C)</span>
+      </span>
+    </label>
+    <input type="number" id="temp" placeholder="e.g. 28">
+
+    <label for="rain">
+      🌧️ Rainfall (mm)
+      <span class="tooltip">ℹ️
+        <span class="tooltiptext">Annual rainfall range: 50mm – 300mm<br>Rice needs >150mm, Wheat <100mm</span>
+      </span>
+    </label>
+    <input type="number" id="rain" placeholder="e.g. 120">
+
+    <label for="ph">
+      🌍 Soil pH
+      <span class="tooltip">ℹ️
+        <span class="tooltiptext">Ideal soil pH: 5.5 – 7.5<br>Neutral (≈6.5) is best for most crops</span>
+      </span>
+    </label>
+    <input type="number" step="0.1" id="ph" placeholder="e.g. 6.5">
+
+    <button onclick="recommendCrop()">✨ Get Recommendation</button>
+    
+    <div id="result" class="result" style="display:none;"></div>
+    
+    <canvas id="chart" style="display:none;" width="400" height="250"></canvas>
+  </div>
+  
+  <script>
+    let chartInstance = null;
+
+    function recommendCrop() {
+      let temp = parseFloat(document.getElementById("temp").value);
+      let rain = parseFloat(document.getElementById("rain").value);
+      let ph = parseFloat(document.getElementById("ph").value);
+      let resultBox = document.getElementById("result");
+      let crop = "";
+
+      if (isNaN(temp) || isNaN(rain) || isNaN(ph)) {
+        resultBox.style.display = "block";
+        resultBox.innerHTML = "⚠️ Please fill all fields correctly.";
+        return;
+      }
+
+      let scores = { Rice: 0, Wheat: 0, Maize: 0, Groundnut: 0, Millets: 0 };
+
+      if (temp > 25) scores.Rice += 30;
+      if (rain > 150) scores.Rice += 40;
+      if (ph >= 5.5 && ph <= 7.5) scores.Rice += 30;
+
+      if (temp >= 20 && temp <= 25) scores.Wheat += 30;
+      if (rain < 100) scores.Wheat += 40;
+      if (ph >= 6 && ph <= 7.5) scores.Wheat += 30;
+
+      if (temp >= 18 && temp <= 30) scores.Maize += 30;
+      if (rain >= 50 && rain <= 120) scores.Maize += 40;
+      if (ph >= 5.5 && ph <= 7) scores.Maize += 30;
+
+      if (temp >= 22) scores.Groundnut += 30;
+      if (rain >= 80) scores.Groundnut += 40;
+      if (ph >= 6 && ph <= 7.5) scores.Groundnut += 30;
+
+      if (temp > 28 || rain < 80) scores.Millets += 50;
+      if (ph >= 5 && ph <= 8) scores.Millets += 50;
+
+      let bestCrop = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
+      crop = bestCrop;
+
+      resultBox.style.display = "block";
+      resultBox.innerHTML = "✅ Recommended Crop: " + crop;
+
+      let chartCanvas = document.getElementById("chart");
+      chartCanvas.style.display = "block";
+
+      if (chartInstance) { chartInstance.destroy(); }
+
+      chartInstance = new Chart(chartCanvas, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(scores),
+          datasets: [{
+            label: 'Suitability Score',
+            data: Object.values(scores),
+            backgroundColor: [
+              'rgba(74, 144, 226, 0.8)',
+              'rgba(80, 200, 120, 0.8)',
+              'rgba(243, 156, 18, 0.8)',
+              'rgba(231, 76, 60, 0.8)',
+              'rgba(155, 89, 182, 0.8)'
+            ],
+            borderRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            title: {
+              display: true,
+              text: '📊 Crop Suitability Scores',
+              color: '#fff',
+              font: { size: 16, weight: 'bold' }
+            }
+          },
+          scales: {
+            y: { beginAtZero: true, max: 100, ticks: { color: '#fff' } },
+            x: { ticks: { color: '#fff' } }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
